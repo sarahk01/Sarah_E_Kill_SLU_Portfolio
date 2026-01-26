@@ -1,0 +1,90 @@
+SELECT
+  DATE_TRUNC(run_at_date, Month) Month
+  ,'Footprint' as metric
+  ,analytics_key
+  ,analytics_value
+FROM
+  `engagement_footprint`
+WHERE
+  run_at_date IN (
+  SELECT
+    MAX(run_at_date)
+  FROM
+    `engagement_footprint`
+  GROUP BY
+    DATE_TRUNC(run_at_date, Month))
+
+UNION ALL
+
+SELECT
+  DATE_TRUNC(run_at_date, Month) Month  
+  ,'Data Health' as metric
+  ,analytics_key
+  ,analytics_value
+FROM
+  `data_health_pillars`
+WHERE
+  run_at_date IN (
+  SELECT
+    MAX(run_at_date)
+  FROM
+    `data_health_pillars`
+  GROUP BY
+    DATE_TRUNC(run_at_date, Month))
+
+ UNION ALL
+
+SELECT
+  DATE_TRUNC(run_at_date, Month) Month
+  ,'Depth' as metric
+  ,analytics_key
+  ,analytics_value
+FROM
+  `data_depth`
+WHERE
+  run_at_date IN (
+  SELECT
+    MAX(run_at_date)
+  FROM
+    `data_depth`
+  GROUP BY
+    DATE_TRUNC(run_at_date, Month))
+
+Union ALL
+
+SELECT
+  DATE_TRUNC(run_at_date, Month) Month
+  ,'Firmographic' as metric
+  ,analytics_key
+  ,analytics_value
+FROM
+  `firmographics`
+WHERE
+  run_at_date IN (
+  SELECT
+    MAX(run_at_date)
+  FROM
+    `firmographics`
+  GROUP BY
+    DATE_TRUNC(run_at_date, Month))
+
+Union ALL
+
+SELECT
+  DATE_TRUNC(run_at_date, Month) Month
+  ,'Demographic' as metric
+  ,analytics_key
+  ,analytics_value
+FROM
+  `demographics`
+WHERE
+  run_at_date IN (
+  SELECT
+    MAX(run_at_date)
+  FROM
+    `demographics`
+  GROUP BY
+    DATE_TRUNC(run_at_date, Month))
+ORDER BY
+  Month,
+  analytics_value

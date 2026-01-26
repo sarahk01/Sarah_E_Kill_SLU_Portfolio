@@ -1,0 +1,87 @@
+SELECT
+    CAST(stream_id as STRING) AS stream_id,
+    site_type,
+    brand_group,
+    brand,
+    REGEXP_EXTRACT(url, r'^https?://[^/]+') AS site_url,
+    FORMAT_DATE('%Y-%m', event_date) AS year_month,
+    CASE
+      WHEN LOWER(traffic_source.source) LIKE '%chatgpt.com%' THEN 'GenAI'
+      WHEN LOWER(traffic_source.source) LIKE '%perplexity.ai%' THEN 'GenAI'
+      WHEN LOWER(traffic_source.source) LIKE '%gemini.google.com%' THEN 'GenAI'
+      WHEN LOWER(traffic_source.source) LIKE '%.ai' THEN 'GenAI'
+      WHEN LOWER(traffic_medium) LIKE '%social%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%facebook%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%instagram%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%meta%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%fb%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%lnkd%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%linked%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%twitter%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%youtube%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%pinterest%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%tiktok%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%reddit%' THEN 'Social'
+      WHEN LOWER(traffic_medium) LIKE '%linktr%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%social%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%facebook%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%instagram%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%meta%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%fb%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%linked%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%twitter%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%youtube%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%tiktok%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%pinterest%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%reddit%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%lnkd%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%linktr%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%dlvr%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) LIKE '%t.co%' THEN 'Social'
+      WHEN LOWER(traffic_source.source) ='(direct)' THEN 'Direct'
+      ELSE COALESCE(traffic_medium, 'Unknown')
+    END AS traffic_medium,
+    COALESCE(traffic_source.source,'Unknown') AS traffic_source,
+    COUNT(DISTINCT event_guid) AS views,
+    COUNT(DISTINCT session_id) AS sessions,
+    COUNT(DISTINCT IF(session_engaged = '1', session_id, NULL)) AS engaged_sessions,
+    COUNT(DISTINCT IF(session_engaged = '1', session_id, NULL)) / COUNT(DISTINCT session_id) AS engagement_rate,
+    COUNT(DISTINCT user_pseudo_id) AS users,
+    "False" AS is_all
+  FROM `analytics.page_view`
+  GROUP BY
+    stream_id,
+    site_type,
+    brand_group,
+    brand,
+    site_url,
+    FORMAT_DATE('%Y-%m', event_date),
+    traffic_medium,
+    traffic_source
+  
+UNION ALL
+SELECT
+    CAST(stream_id as STRING) AS stream_id,
+    site_type,
+    brand_group,
+    brand,
+    REGEXP_EXTRACT(url, r'^https?://[^/]+') AS site_url,
+    FORMAT_DATE('%Y-%m', event_date) AS year_month,
+    'All' AS traffic_medium,
+    'All' AS traffic_source,
+    COUNT(DISTINCT event_guid) AS views,
+    COUNT(DISTINCT session_id) AS sessions,
+    COUNT(DISTINCT IF(session_engaged = '1', session_id, NULL)) AS engaged_sessions,
+    COUNT(DISTINCT IF(session_engaged = '1', session_id, NULL)) / COUNT(DISTINCT session_id) AS engagement_rate,
+    COUNT(DISTINCT user_pseudo_id) AS users,
+    "True" AS is_all
+  FROM `page_view`
+  GROUP BY
+    stream_id,
+    site_type,
+    brand_group,
+    brand,
+    site_url,
+    FORMAT_DATE('%Y-%m', event_date),
+    traffic_medium,
+    traffic_source

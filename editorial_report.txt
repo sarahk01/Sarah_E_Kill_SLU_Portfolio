@@ -1,0 +1,45 @@
+SELECT 
+  ct.Brand, 
+  cm.ContentType, 
+  cm.ContentTitle AS title, 
+  TRIM(author_part) AS author, 
+  cm.PrimaryTaxonomyName AS taxonomy, 
+  pv.session_engaged AS engagement, 
+  pv.engagement_time_sec AS time, 
+  pv.brand_group AS market, 
+  pv.traffic_source.source AS source, 
+  pv.traffic_source.medium AS medium, 
+  pv.traffic_source.name AS name, 
+  pv.event_year_month AS date, 
+  pv.user_pseudo_id AS User, 
+  pv.session_id AS sessions,
+  pv.event_guid AS Page_Views
+FROM (
+  SELECT 
+    cm.*,
+    author_part
+  FROM `content_cms` AS cm,
+    UNNEST(
+    SPLIT(
+      REPLACE(
+        REPLACE(
+          REPLACE(
+            REPLACE(
+              REPLACE(cm.AuthorName, ' and ', ','), 
+              ';', ','
+            ),
+            ' ,', ','
+          ),
+          ' & ', ','
+        ),
+        '&', ','
+      ),
+      ','
+    )
+  ) AS author_part
+) AS cm
+join `content_page` as ct on ct.ProductKey = cm.ProductKey and ct.ContentId=cm.ContentId
+join `page_view` as pv on ct.PageKey = pv.page_key
+WHERE pv.event_date >= DATE('2024-05-01')
+  AND TRIM(author_part) IS NOT NULL
+  AND TRIM(author_part) != ''
