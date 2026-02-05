@@ -1,0 +1,122 @@
+WITH Demographics AS (
+    SELECT
+        customer_id,
+
+        MAX(CASE WHEN demographic_name = 'Primary Business' THEN val_text END) AS T_Primary_Business,
+        MAX(CASE WHEN demographic_name = 'Sales Volume' THEN val_text END) AS T_Sales_Volume,
+        MAX(CASE WHEN demographic_name = 'Business' THEN val_text END) AS M_Primary_Business,
+        MAX(CASE WHEN demographic_name = 'Primary Job Function' THEN val_text END) AS M_Primary_Job_Function,
+        MAX(CASE WHEN demographic_name = 'Job Function' THEN val_text END) AS S_Primary_Job_Function,
+        MAX(CASE WHEN demographic_name = 'Job Title' THEN val_text END) AS I_Primary_Job_Function,
+        MAX(CASE WHEN demographic_name = 'Business Activity' THEN val_text END) AS A_Primary_Business,
+        MAX(CASE WHEN demographic_name = 'Function' THEN val_text END) AS A_Primary_Job_Function,
+
+        MAX(CASE WHEN demographic_name = 'US Annual Business Travel Spend' THEN val_text END) AS BU_Travel_Cost,
+        MAX(CASE WHEN demographic_name = 'US Business Travel Involvement' THEN val_text END) AS BU_Involvment,
+        MAX(CASE WHEN demographic_name = 'US Primary Job Function' THEN val_text END) AS BU_Primary_Job_Function,
+        MAX(CASE WHEN demographic_name = 'US Primary Business' THEN val_text END) AS BU_Primary_Business,
+
+        MAX(CASE WHEN demographic_name = 'UK Annual Business Travel Spend' THEN val_text END) AS BK_Travel_Cost,
+        MAX(CASE WHEN demographic_name = 'UK Business Travel Involvement' THEN val_text END) AS BK_Involvment,
+        MAX(CASE WHEN demographic_name = 'UK Primary Job Function' THEN val_text END) AS BK_Primary_Job_Function,
+        MAX(CASE WHEN demographic_name = 'UK Business Sector' THEN val_text END) AS BK_Primary_Business
+
+    FROM (
+        SELECT
+            cdem.customer_id,
+            dem.demographic_name,
+            STRING_AGG(dem.value_text, ',') AS val_text
+        FROM omeda_customer_demographic cdem
+        JOIN omeda_demographic dem
+            ON cdem.demographic_id = dem.demographic_id
+           AND cdem.value_id = dem.value_id
+        GROUP BY 1,2
+    )
+    GROUP BY customer_id
+),
+
+Geo AS (
+    SELECT
+        oca.customer_id,
+        oca.country_code,
+        c.country_name,
+        c.continent,
+        c.region AS world_region,
+        oca.region_code AS state_code,
+        s.state_name,
+        s.us_region
+    FROM omeda_customer_address oca
+    LEFT JOIN country_dim c
+        ON c.country_code = oca.country_code
+    LEFT JOIN state_dim s
+        ON s.state_code = oca.region_code
+    WHERE oca.status = 'Primary'
+),
+
+Newsletter AS (
+    SELECT
+        ddu.customer_id,
+        ddu.deployment_name AS product_name,
+        ddu.name AS deployment_actual_name,
+        'Newsletter' AS product_type_name,
+        NULL AS product_version_type,
+        ddu.send_dt AS product_original_order,
+        twd.* EXCEPT(customer_id),
+        g.country_code,
+        g.country_name,
+        g.continent,
+        g.world_region,
+        g.state_name,
+
+        CASE WHEN g.us_region = 'Northeast' THEN 1 ELSE 0 END AS northeast,
+        CASE WHEN g.us_region = 'Midwest'   THEN 1 ELSE 0 END AS midwest,
+        CASE WHEN g.us_region = 'South'     THEN 1 ELSE 0 END AS south,
+        CASE WHEN g.us_region = 'West'      THEN 1 ELSE 0 END AS west
+
+    FROM daily_deployments_users_36_mnths ddu
+    LEFT JOIN Demographics twd
+        ON twd.customer_id = ddu.customer_id
+    LEFT JOIN Geo g
+        ON g.customer_id = ddu.customer_id
+    WHERE ddu.send_dt BETWEEN
+        DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
+        AND DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 DAY)
+),
+
+Magazine AS (
+    SELECT DISTINCT
+        cph.customer_id,
+        cph.product_name,
+        CAST(NULL AS STRING) AS deployment_actual_name,
+        cph.product_type_name,
+        CASE
+            WHEN cph.product_type_name = 'Magazine'
+            THEN cph.product_version_type
+        END AS product_version_type,
+        SAFE_CAST(
+            REGEXP_REPLACE(CAST(cph.product_original_order AS STRING), r'[^0-9\-]', '')
+            AS DATE
+        ) AS product_original_order,
+        twd.* EXCEPT(customer_id),
+        g.country_code,
+        g.country_name,
+        g.continent,
+        g.world_region,
+        g.state_name,
+
+        CASE WHEN g.us_region = 'Northeast' THEN 1 ELSE 0 END AS northeast,
+        CASE WHEN g.us_region = 'Midwest'   THEN 1 ELSE 0 END AS midwest,
+        CASE WHEN g.us_region = 'South'     THEN 1 ELSE 0 END AS south,
+        CASE WHEN g.us_region = 'West'      THEN 1 ELSE 0 END AS west
+
+    FROM customer_product_brand cph
+    LEFT JOIN Demographics twd
+        ON twd.customer_id = cph.customer_id
+    LEFT JOIN Geo g
+        ON g.customer_id = cph.customer_id
+    WHERE cph.product_type_name = 'Magazine'
+)
+
+SELECT * FROM Newsletter
+UNION ALL
+SELECT * FROM Magazine;
