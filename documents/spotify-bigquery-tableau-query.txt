@@ -1,0 +1,15 @@
+SELECT
+  f.play_id,
+  f.end_time,
+  DATE(f.end_time) AS listen_date,
+  FORMAT_TIMESTAMP('%Y-%m', f.end_time) AS listen_month,
+  FORMAT_TIMESTAMP('%Y-%W', f.end_time) AS listen_week,
+  a.artist_name,
+  t.track_name,
+  f.ms_played,
+  f.minutes_played
+FROM spotify.fact_streaming f
+JOIN spotify.dim_artist a
+  ON f.artist_id = a.artist_id
+JOIN spotify.dim_track t
+  ON f.track_id = t.track_id;

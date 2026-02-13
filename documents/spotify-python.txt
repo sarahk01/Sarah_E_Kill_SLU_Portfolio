@@ -1,0 +1,24 @@
+import json
+import csv
+
+input_files = [
+    "StreamingHistory_music_0.json",
+    "StreamingHistory_music_1.json"
+]
+
+output_file = "spotify_streaming_history.csv"
+
+with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["end_time", "artist_name", "track_name", "ms_played"])
+
+    for file in input_files:
+        with open(file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for row in data:
+                writer.writerow([
+                    row["endTime"],
+                    row["artistName"],
+                    row["trackName"],
+                    row["msPlayed"]
+                ])

@@ -1,0 +1,59 @@
+CREATE TABLE spotify.dim_artist (
+  artist_id INT64,
+  artist_name STRING
+);
+CREATE TABLE spotify.dim_track (
+  track_id INT64,
+  track_name STRING,
+  artist_id INT64
+);
+CREATE TABLE spotify.fact_streaming (
+  play_id INT64,
+  track_id INT64,
+  artist_id INT64,
+  end_time TIMESTAMP,
+  ms_played INT64
+)
+PARTITION BY DATE(end_time)
+CLUSTER BY artist_id, track_id;
+
+CREATE OR REPLACE TABLE spotify.dim_artist AS
+SELECT
+  ROW_NUMBER() OVER (ORDER BY artist_name) AS artist_id,
+  artist_name
+FROM (
+  SELECT DISTINCT artist_name
+  FROM spotify.stg_streaming
+  WHERE artist_name IS NOT NULL
+);
+
+CREATE OR REPLACE TABLE spotify.dim_track AS
+SELECT
+  ROW_NUMBER() OVER (ORDER BY track_name, artist_id) AS track_id,
+  track_name,
+  artist_id
+FROM (
+  SELECT DISTINCT
+    s.track_name,
+    a.artist_id
+  FROM spotify.stg_streaming s
+  JOIN spotify.dim_artist a
+    ON s.artist_name = a.artist_name
+);
+
+CREATE OR REPLACE TABLE spotify.fact_streaming
+PARTITION BY DATE(end_time)
+CLUSTER BY artist_id, track_id AS
+SELECT
+  ROW_NUMBER() OVER () AS play_id,
+  t.track_id,
+  a.artist_id,
+  s.end_time,
+  s.ms_played,
+  ROUND(s.ms_played / 60000, 2) AS minutes_played
+FROM spotify.stg_streaming s
+JOIN spotify.dim_artist a
+  ON s.artist_name = a.artist_name
+JOIN spotify.dim_track t
+  ON s.track_name = t.track_name
+ AND a.artist_id = t.artist_id;
